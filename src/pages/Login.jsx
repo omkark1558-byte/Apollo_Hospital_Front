@@ -20,18 +20,40 @@ export default function Login() {
   };
 
   const handleLogin = async (event) => {
+
     event.preventDefault();
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:8080/login", form);
-      localStorage.setItem("token", res.data.token);
-      toast.success("Login successful");
+
+      const res = await axios.post(
+        "http://localhost:8080/auth/login",
+        form
+      );
+
+      localStorage.setItem(
+        "token",
+        res.data
+      );
+
+      toast.success(
+        "Login Successful ✅"
+      );
+
       navigate("/");
-    } catch {
-      toast.error("Invalid credentials");
+
+    } catch (error) {
+
+      console.log(error);
+
+      toast.error(
+        "Invalid Credentials ❌"
+      );
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
