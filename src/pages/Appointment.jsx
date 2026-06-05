@@ -1,38 +1,52 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import {
   addAppointment,
   deleteAppointment,
   getAppointments,
+  getDoctors,
+  getPatients,
   updateAppointment,
 } from "../services/api";
 
 const initialForm = {
   patientId: "",
   doctorId: "",
-  a_date: "",
-  a_time: "",
-  reason: "",
-  status: "Scheduled",
+  appointmentDate: "",
+  status: "BOOKED",
 };
 
 const getAppointmentId = (appointment) =>
   appointment.a_id || appointment.id || appointment.appointmentId;
 
+const getDoctorName = (doctor) => doctor?.d_name || doctor?.name || "Unknown doctor";
+const getPatientName = (patient) => patient?.p_name || patient?.name || "Unknown patient";
+
 export default function Appointment() {
   const [appointments, setAppointments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [patients, setPatients] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const loadAppointments = async () => {
     setLoading(true);
     try {
-      const res = await getAppointments();
-      setAppointments(Array.isArray(res.data) ? res.data : []);
+      const [appointmentRes, doctorRes, patientRes] = await Promise.all([
+        getAppointments(),
+        getDoctors(),
+        getPatients(),
+      ]);
+
+      setAppointments(Array.isArray(appointmentRes.data) ? appointmentRes.data : []);
+      setDoctors(Array.isArray(doctorRes.data) ? doctorRes.data : []);
+      setPatients(Array.isArray(patientRes.data) ? patientRes.data : []);
     } catch {
-      toast.error("Failed to load appointments");
+      toast.error("Appointment data load failed. Please start backend on port 8080.");
     } finally {
       setLoading(false);
     }
@@ -42,6 +56,11 @@ export default function Appointment() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAppointments();
   }, []);
+
+  const filteredAppointments = useMemo(() => {
+    if (statusFilter === "All") return appointments;
+    return appointments.filter((appointment) => appointment.status === statusFilter);
+  }, [appointments, statusFilter]);
 
   const handleChange = (event) => {
     setForm((prev) => ({
@@ -56,50 +75,60 @@ export default function Appointment() {
     setShowForm(false);
   };
 
+  const buildCreatePayload = () => ({
+    doctorId: Number(form.doctorId),
+    patientId: Number(form.patientId),
+    appointmentDate: form.appointmentDate,
+  });
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setLoading(true);
+    setSaving(true);
 
     try {
       if (editId) {
-        await updateAppointment(editId, form);
-        toast.success("Appointment updated");
+        await updateAppointment(editId, { status: form.status });
+        toast.success("Appointment status updated");
       } else {
-        await addAppointment(form);
-        toast.success("Appointment booked");
+        await addAppointment(buildCreatePayload());
+        toast.success("Appointment booked successfully");
       }
 
       resetForm();
       loadAppointments();
-    } catch {
-      toast.error("Appointment save failed");
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.response?.data || "Appointment save failed";
+      toast.error(String(message));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleEdit = (appointment) => {
     setEditId(getAppointmentId(appointment));
     setForm({
-      patientId: appointment.patientId || appointment.patient?.p_id || appointment.pt?.p_id || "",
-      doctorId: appointment.doctorId || appointment.doctor?.d_id || appointment.dr?.d_id || "",
-      a_date: appointment.a_date || appointment.date || "",
-      a_time: appointment.a_time || appointment.time || "",
-      reason: appointment.reason || appointment.description || "",
-      status: appointment.status || "Scheduled",
+      patientId: appointment.patient?.p_id || appointment.pt?.p_id || "",
+      doctorId: appointment.doctor?.d_id || appointment.dr?.d_id || "",
+      appointmentDate: appointment.appointmentDate || "",
+      status: appointment.status || "BOOKED",
     });
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this appointment?")) return;
+    if (!id) {
+      toast.error("Appointment id missing");
+      return;
+    }
+
+    if (!window.confirm("Cancel this appointment?")) return;
 
     try {
       await deleteAppointment(id);
-      toast.success("Appointment deleted");
+      toast.success("Appointment cancelled");
       loadAppointments();
     } catch {
-      toast.error("Delete failed");
+      toast.error("Cancel failed");
     }
   };
 
@@ -109,32 +138,86 @@ export default function Appointment() {
         <div>
           <p className="eyebrow">Bookings</p>
           <h2>Appointment Management</h2>
-          <p>Create and maintain doctor-patient appointment bookings.</p>
+          <p>Book appointments with backend-ready doctor, patient, and date mapping.</p>
         </div>
         <button className="btn btn-primary" type="button" onClick={() => setShowForm(true)}>
-          New Appointment
+          Book Appointment
         </button>
       </div>
 
+      <div className="stats-grid compact-stats">
+        <article className="mini-stat">
+          <span>Total</span>
+          <strong>{appointments.length}</strong>
+        </article>
+        <article className="mini-stat success">
+          <span>Booked</span>
+          <strong>{appointments.filter((item) => item.status === "BOOKED").length}</strong>
+        </article>
+        <article className="mini-stat muted">
+          <span>Doctors / Patients</span>
+          <strong>{doctors.length} / {patients.length}</strong>
+        </article>
+      </div>
+
       {showForm && (
-        <section className="panel">
+        <section className="panel compact-panel">
           <div className="section-title">
             <div>
-              <h3>{editId ? "Edit Appointment" : "Book Appointment"}</h3>
-              <p>Use backend doctor and patient IDs for accurate mapping.</p>
+              <h3>{editId ? "Update Status" : "Book Appointment"}</h3>
+              <p>{editId ? "Change appointment status only." : "Select records from backend-loaded dropdowns."}</p>
             </div>
           </div>
 
           <form className="form-grid-inner appointment-form" onSubmit={handleSubmit}>
-            <label>Patient ID<input required name="patientId" value={form.patientId} onChange={handleChange} placeholder="Patient ID" /></label>
-            <label>Doctor ID<input required name="doctorId" value={form.doctorId} onChange={handleChange} placeholder="Doctor ID" /></label>
-            <label>Date<input required type="date" name="a_date" value={form.a_date} onChange={handleChange} /></label>
-            <label>Time<input required type="time" name="a_time" value={form.a_time} onChange={handleChange} /></label>
-            <label>Status<select name="status" value={form.status} onChange={handleChange}><option>Scheduled</option><option>Completed</option><option>Cancelled</option></select></label>
-            <label className="full-span">Reason<textarea name="reason" value={form.reason} onChange={handleChange} placeholder="Consultation reason" rows="3" /></label>
+            {!editId && (
+              <>
+                <label>
+                  Patient
+                  <select required name="patientId" value={form.patientId} onChange={handleChange}>
+                    <option value="">Select patient</option>
+                    {patients.map((patient) => (
+                      <option key={patient.p_id} value={patient.p_id}>
+                        #{patient.p_id} - {getPatientName(patient)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Doctor
+                  <select required name="doctorId" value={form.doctorId} onChange={handleChange}>
+                    <option value="">Select doctor</option>
+                    {doctors.map((doctor) => (
+                      <option key={doctor.d_id} value={doctor.d_id}>
+                        #{doctor.d_id} - {getDoctorName(doctor)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Appointment Date
+                  <input required type="date" name="appointmentDate" value={form.appointmentDate} onChange={handleChange} />
+                </label>
+              </>
+            )}
+
+            {editId && (
+              <label>
+                Status
+                <select name="status" value={form.status} onChange={handleChange}>
+                  <option value="BOOKED">BOOKED</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </label>
+            )}
 
             <div className="form-actions full-span">
-              <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? "Saving..." : editId ? "Update Appointment" : "Book Appointment"}</button>
+              <button className="btn btn-primary" type="submit" disabled={saving}>
+                {saving ? "Saving..." : editId ? "Update Status" : "Book Now"}
+              </button>
               <button className="btn btn-ghost" type="button" onClick={resetForm}>Cancel</button>
             </div>
           </form>
@@ -142,11 +225,17 @@ export default function Appointment() {
       )}
 
       <section className="panel">
-        <div className="section-title">
+        <div className="toolbar">
           <div>
             <h3>Appointments</h3>
-            <p>{appointments.length} booking records</p>
+            <p>{filteredAppointments.length} records visible</p>
           </div>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="All">All status</option>
+            <option value="BOOKED">BOOKED</option>
+            <option value="COMPLETED">COMPLETED</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
         </div>
 
         <div className="table-wrap">
@@ -157,31 +246,29 @@ export default function Appointment() {
                 <th>Patient</th>
                 <th>Doctor</th>
                 <th>Date</th>
-                <th>Time</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="empty-cell">Loading appointments...</td></tr>
-              ) : appointments.length === 0 ? (
-                <tr><td colSpan="7" className="empty-cell">No appointments found</td></tr>
+                <tr><td colSpan="6" className="empty-cell">Loading appointments...</td></tr>
+              ) : filteredAppointments.length === 0 ? (
+                <tr><td colSpan="6" className="empty-cell">No appointments found</td></tr>
               ) : (
-                appointments.map((appointment) => {
+                filteredAppointments.map((appointment) => {
                   const id = getAppointmentId(appointment);
                   return (
-                    <tr key={id || `${appointment.patientId}-${appointment.doctorId}-${appointment.a_date}`}>
+                    <tr key={id}>
                       <td>{id || "-"}</td>
-                      <td>{appointment.patient?.p_name || appointment.pt?.p_name || appointment.patientId || "-"}</td>
-                      <td>{appointment.doctor?.d_name || appointment.dr?.d_name || appointment.doctorId || "-"}</td>
-                      <td>{appointment.a_date || appointment.date || "-"}</td>
-                      <td>{appointment.a_time || appointment.time || "-"}</td>
-                      <td><span className="tag">{appointment.status || "Scheduled"}</span></td>
+                      <td>{getPatientName(appointment.patient || appointment.pt)}</td>
+                      <td>{getDoctorName(appointment.doctor || appointment.dr)}</td>
+                      <td>{appointment.appointmentDate || "-"}</td>
+                      <td><span className={`tag status-${String(appointment.status || "").toLowerCase()}`}>{appointment.status || "BOOKED"}</span></td>
                       <td>
                         <div className="row-actions">
-                          <button className="btn btn-small" type="button" onClick={() => handleEdit(appointment)}>Edit</button>
-                          <button className="btn btn-small danger" type="button" onClick={() => handleDelete(id)}>Delete</button>
+                          <button className="btn btn-small" type="button" onClick={() => handleEdit(appointment)}>Status</button>
+                          <button className="btn btn-small danger" type="button" onClick={() => handleDelete(id)}>Cancel</button>
                         </div>
                       </td>
                     </tr>
