@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken } from "./auth";
 
 const API = axios.create({
-    baseURL: "http://localhost:8080",
+    baseURL: "/api",
 });
 API.interceptors.request.use((config) => {
     const token = getToken();
@@ -45,12 +45,12 @@ export const getAppointments = () =>
     API.get("/get-appointment");
 
 export const addAppointment = (data) =>
-    API.post("/add-appointment", data);
+    API.post("/book-appointment", data);
 
 export const updateAppointment = (id, data) =>
-    API.put(`/update-appointment/${id}`, data);
+    API.put(`/appointment-status/${id}`, data);
 
 export const deleteAppointment = (id) =>
-    API.delete(`/delete-appointment/${id}`);
+    API.delete(`/cancel-appointment/${id}`);
 
 export default API;
