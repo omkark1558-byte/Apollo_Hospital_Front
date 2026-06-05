@@ -9,20 +9,57 @@ import Dashboard from "./pages/Dashboard";
 import Doctor from "./pages/Doctor";
 import Login from "./pages/Login";
 import Patient from "./pages/Patient";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
     <BrowserRouter>
+
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route element={<MainLayout />}>
+
+        {/* Login Page */}
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        {/* Protected Pages */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
-          <Route path="/dashboard" element={<Navigate to="/" replace />} />
-          <Route path="/doctors" element={<Doctor />} />
-          <Route path="/patients" element={<Patient />} />
-          <Route path="/appointments" element={<Appointment />} />
+
+          <Route
+            path="/dashboard"
+            element={<Dashboard />}
+          />
+
+          <Route
+            path="/doctors"
+            element={<Doctor />}
+          />
+
+          <Route
+            path="/patients"
+            element={<Patient />}
+          />
+
+          <Route
+            path="/appointments"
+            element={<Appointment />}
+          />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        {/* Invalid URL Redirect */}
+        <Route
+          path="*"
+          element={<Navigate to="/login" />}
+        />
+
       </Routes>
 
       <ToastContainer
@@ -32,6 +69,7 @@ function App() {
         newestOnTop
         theme="colored"
       />
+
     </BrowserRouter>
   );
 }
