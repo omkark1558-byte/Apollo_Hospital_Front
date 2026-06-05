@@ -10,22 +10,23 @@ const navItems = [
 function Sidebar() {
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark">AH</div>
+
+      <div className="sidebar-brand">
+        <h2>AH</h2>
         <div>
-          <h1>Apollo Hospital</h1>
+          <h3>Apollo Hospital</h3>
           <p>Admin Console</p>
         </div>
       </div>
 
-      <nav className="sidebar-nav" aria-label="Main navigation">
+      <nav className="sidebar-nav">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === "/"}
             className={({ isActive }) =>
-              `nav-item${isActive ? " active" : ""}`
+              `nav-item ${isActive ? "active" : ""}`
             }
           >
             <span className="nav-icon">{item.icon}</span>
@@ -35,9 +36,10 @@ function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <span className="status-dot" />
+        <span className="status-dot"></span>
         Backend connected on port 8080
       </div>
+
     </aside>
   );
 }

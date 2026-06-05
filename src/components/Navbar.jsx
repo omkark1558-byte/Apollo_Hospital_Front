@@ -1,24 +1,33 @@
-import { logout } from "../services/auth";
+import { useNavigate } from "react-router-dom";
 
-function Navbar() {
+export default function Navbar() {
+
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+
+    localStorage.removeItem("token");
+
+    navigate("/login");
+
+  };
+
   return (
-    <header className="topbar">
-      <div>
-        <p className="eyebrow">Hospital Management System</p>
-        <h2>Clinical Operations</h2>
-      </div>
+    <div
+      style={{
+        height: "60px",
+        background: "white",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "0 20px",
+      }}
+    >
+      <h3>Apollo Hospital</h3>
 
-      <div className="topbar-actions">
-        <div className="admin-chip">
-          <span className="avatar">A</span>
-          <span>Admin</span>
-        </div>
-        <button className="btn btn-ghost" type="button" onClick={logout}>
-          Logout
-        </button>
-      </div>
-    </header>
+      <button onClick={handleLogout}>
+        Logout
+      </button>
+    </div>
   );
 }
-
-export default Navbar;
